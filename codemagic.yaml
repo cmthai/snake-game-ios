@@ -12,11 +12,15 @@ workflows:
           unzip -o ios.zip
       - name: Install Node dependencies
         script: |
-          npm install --include=dev
+          npm install
           npm install @capacitor/cli @capacitor/core @capacitor/ios
+      - name: Create Web Assets Mock Target
+        script: |
+          mkdir -p dist www
+          touch dist/index.html www/index.html
       - name: Repair and Force Sync Capacitor
         script: |
-          npx cap sync ios --inline
+          npx cap sync ios
       - name: Build iOS Xcode Application
         script: |
           cd ios/App && xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -sdk iphoneos CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
