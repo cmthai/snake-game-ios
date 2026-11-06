@@ -14,6 +14,7 @@ workflows:
 
       - name: Ensure Package Config (Auto-heal if missing)
         script: |
+          # สร้าง package.json และ capacitor.config.json อัตโนมัติหากยังไม่มีใน Git
           if [ ! -f "package.json" ]; then
             echo '{"name":"snakegame3d","version":"1.0.0","dependencies":{"@capacitor/core":"^8.6.0","@capacitor/cli":"^8.6.0","@capacitor/ios":"^8.6.0"}}' > package.json
           fi
@@ -24,36 +25,29 @@ workflows:
       - name: Resolve Swift Package Manager Dependencies
         script: |
           cd ios/App
+          # ดึงและตรวจสอบ Library ของ Capacitor ผ่าน Swift Package Manager (SPM)
           xcodebuild -project App.xcodeproj -resolvePackageDependencies
-
-      - name: Configure Dummy Development Team Signing
-        script: |
-          # เขียนสคริปต์บังคับเปลี่ยนพารามิเตอร์ของโปรเจกต์ Xcode ให้จำลองการเซ็นสิทธิ์ลงทะเบียนพัฒนาฟรีอัตโนมัติ
-          cd ios/App
-          sed -i '' 's/CODE_SIGNING_ALLOWED = NO/CODE_SIGNING_ALLOWED = YES/g' App.xcodeproj/project.pbxproj 2>/dev/null || true
-          sed -i '' 's/CODE_SIGN_STYLE = Manual/CODE_SIGN_STYLE = Automatic/g' App.xcodeproj/project.pbxproj 2>/dev/null || true
 
       - name: Build iOS Xcode Application
         script: |
           cd ios/App
-          # บิวด์แอปในโหมดจำลองสิทธิ์นักพัฒนาอิสระเพื่อรับใบรับรองติดตั้งฟรี
+          # บิวด์แอป iOS Release โดยใช้ App.xcodeproj
           xcodebuild -project App.xcodeproj \
             -scheme App \
             -configuration Release \
             -sdk iphoneos \
             -derivedDataPath build \
-            CODE_SIGNING_ALLOWED=YES \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="Apple Development" \
-            PROVISIONING_PROFILE_SPECIFIER=""
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
 
-      - name: Package .app into Installable .ipa with Embedded Profile
+      - name: Package .app into Installable .ipa
         script: |
           cd ios/App/build/Build/Products/Release-iphoneos
           mkdir -p Payload
           cp -r App.app Payload/
           zip -r ../../../../SnakeGame3D.ipa Payload
-          echo "Created SnakeGame3D.ipa with embedded profile successfully!"
+          echo "Created SnakeGame3D.ipa successfully!"
 
     artifacts:
       - SnakeGame3D.ipa
+      - ios/App/build/Build/Products/Release-iphoneos/*.app
