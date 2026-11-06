@@ -1,71 +1,26 @@
 workflows:
-  ios-capacitor-workflow:
+  ios-capacitor:
     name: Build iOS Capacitor App (No Mac Needed)
-    max_build_duration: 60
-    instance_type: mac_mini_m1
+    max_build_duration: 30
+    instance_type: mac_mini_m2
     environment:
       node: 20
       xcode: latest
-      cocoapods: default
     scripts:
       - name: Extract iOS project from zip
         script: |
-          echo "📦 Checking for ios.zip..."
-          if [ -f "ios.zip" ]; then
-            echo "📦 Found ios.zip! Extracting to root directory..."
-            unzip -o -q ios.zip
-            echo "✓ ios.zip extracted successfully"
-            ls -la ios
-          else
-            echo "ℹ️ No ios.zip file found, using existing ios directory"
-          fi
-
+          unzip -o ios.zip
       - name: Install Node dependencies
         script: |
-          echo "📥 Installing npm packages..."
-          npm install
-
-      - name: Prepare web assets
+          npm install --include=dev
+          npm install @capacitor/cli @capacitor/core @capacitor/ios
+      - name: Repair and Force Sync Capacitor
         script: |
-          echo "🌐 Syncing web assets to www/ folder..."
-          node scripts/sync_www.js
-
-      - name: Capacitor Sync iOS
+          npx cap sync ios --inline
+      - name: Build iOS Xcode Application
         script: |
-          echo "🔄 Running Capacitor sync for iOS..."
-          npx cap sync ios
-
-      - name: Build iOS Application (.ipa / Archive)
-        script: |
-          echo "🔨 Building iOS project with Xcode..."
-          cd ios/App
-          
-          # Clean and archive project without requiring Mac Code Signing certificates
-          xcodebuild clean \
-            -workspace App.xcworkspace \
-            -scheme App \
-            -configuration Release
-
-          xcodebuild archive \
-            -workspace App.xcworkspace \
-            -scheme App \
-            -configuration Release \
-            -destination 'generic/platform=iOS' \
-            -archivePath build/App.xcarchive \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY=""
-
-          # Package into standard .ipa for installation / sideloading
-          echo "📦 Packaging App into .ipa format..."
-          mkdir -p build/Payload
-          cp -r build/App.xcarchive/Products/Applications/App.app build/Payload/
-          cd build
-          zip -r -q SnakeGame3D.ipa Payload/
-          echo "🎉 SnakeGame3D.ipa created successfully!"
-
+          cd ios/App && xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -sdk iphoneos CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
     artifacts:
-      - ios/App/build/SnakeGame3D.ipa
-      - ios/App/build/*.xcarchive
-      - /tmp/xcodebuild_logs/*.log
-
+      - ios/App/build/Release-iphoneos/*.app
+      - build/Release-iphoneos/*.app
+      - ios/App/build/**/*.app
