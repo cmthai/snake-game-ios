@@ -22,5 +22,3 @@ workflows:
           cd ios/App && xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -sdk iphoneos CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
     artifacts:
       - ios/App/build/Release-iphoneos/*.app
-      - build/Release-iphoneos/*.app
-      - ios/App/build/**/*.app
