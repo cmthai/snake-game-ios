@@ -9,20 +9,45 @@ workflows:
     scripts:
       - name: Extract iOS project from zip
         script: |
+          echo "Extracting iOS project..."
           unzip -o ios.zip
-      - name: Create Web Assets Mock Target
+
+      - name: Ensure Package Config (Auto-heal if missing)
         script: |
-          mkdir -p dist www
-          touch dist/index.html www/index.html
-          echo '{"name": "snakegame", "version": "1.0.0", "dependencies": {"@capacitor/core": "^6.0.0", "@capacitor/ios": "^6.0.0"}, "devDependencies": {"@capacitor/cli": "^6.0.0"}}' > package.json
-      - name: Install Node dependencies
+          # สร้าง package.json และ capacitor.config.json อัตโนมัติหากยังไม่มีใน Git
+          if [ ! -f "package.json" ]; then
+            echo '{"name":"snakegame3d","version":"1.0.0","dependencies":{"@capacitor/core":"^8.6.0","@capacitor/cli":"^8.6.0","@capacitor/ios":"^8.6.0"}}' > package.json
+          fi
+          if [ ! -f "capacitor.config.json" ]; then
+            echo '{"appId":"com.ncp.snakegame","appName":"เกมเศรษฐี 3D","webDir":"ios/App/App/public"}' > capacitor.config.json
+          fi
+
+      - name: Resolve Swift Package Manager Dependencies
         script: |
-          npm install
-      - name: Repair and Force Sync Capacitor
-        script: |
-          npx cap sync ios
+          cd ios/App
+          # ดึงและตรวจสอบ Library ของ Capacitor ผ่าน Swift Package Manager (SPM)
+          xcodebuild -project App.xcodeproj -resolvePackageDependencies
+
       - name: Build iOS Xcode Application
         script: |
-          cd ios/App && xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -sdk iphoneos CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+          cd ios/App
+          # บิวด์แอป iOS Release โดยใช้ App.xcodeproj
+          xcodebuild -project App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
+
+      - name: Package .app into Installable .ipa
+        script: |
+          cd ios/App/build/Build/Products/Release-iphoneos
+          mkdir -p Payload
+          cp -r App.app Payload/
+          zip -r ../../../../SnakeGame3D.ipa Payload
+          echo "Created SnakeGame3D.ipa successfully!"
+
     artifacts:
-      - ios/App/build/Release-iphoneos/*.app
+      - SnakeGame3D.ipa
+      - ios/App/build/Build/Products/Release-iphoneos/*.app
