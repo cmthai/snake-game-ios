@@ -10,14 +10,14 @@ workflows:
       - name: Extract iOS project from zip
         script: |
           unzip -o ios.zip
-      - name: Install Node dependencies
-        script: |
-          npm install
-          npm install @capacitor/cli @capacitor/core @capacitor/ios
       - name: Create Web Assets Mock Target
         script: |
           mkdir -p dist www
           touch dist/index.html www/index.html
+          echo '{"name": "snakegame", "version": "1.0.0", "dependencies": {"@capacitor/core": "^6.0.0", "@capacitor/ios": "^6.0.0"}, "devDependencies": {"@capacitor/cli": "^6.0.0"}}' > package.json
+      - name: Install Node dependencies
+        script: |
+          npm install
       - name: Repair and Force Sync Capacitor
         script: |
           npx cap sync ios
