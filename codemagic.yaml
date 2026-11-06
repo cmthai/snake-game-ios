@@ -6,6 +6,8 @@ workflows:
     environment:
       node: 20
       xcode: latest
+      ios_signing:
+        distribution_type: development  # ใช้โหมดพัฒนาและทดสอบส่วนบุคคลฟรี
     scripts:
       - name: Extract iOS project from zip
         script: |
@@ -14,7 +16,6 @@ workflows:
 
       - name: Ensure Package Config (Auto-heal if missing)
         script: |
-          # สร้าง package.json และ capacitor.config.json อัตโนมัติหากยังไม่มีใน Git
           if [ ! -f "package.json" ]; then
             echo '{"name":"snakegame3d","version":"1.0.0","dependencies":{"@capacitor/core":"^8.6.0","@capacitor/cli":"^8.6.0","@capacitor/ios":"^8.6.0"}}' > package.json
           fi
@@ -25,20 +26,22 @@ workflows:
       - name: Resolve Swift Package Manager Dependencies
         script: |
           cd ios/App
-          # ดึงและตรวจสอบ Library ของ Capacitor ผ่าน Swift Package Manager (SPM)
           xcodebuild -project App.xcodeproj -resolvePackageDependencies
+
+      - name: Initialize Code Signing Settings
+        script: |
+          # เรียกใช้งานคำสั่งจำลองใบรับรองอัตโนมัติจาก Codemagic เพื่อสวมสิทธิ์ Apple ID ของคุณ
+          xcode-project use-profiles
 
       - name: Build iOS Xcode Application
         script: |
           cd ios/App
-          # บิวด์แอป iOS Release โดยใช้ App.xcodeproj
+          # บิวด์แอปแบบใช้สิทธิ์การเซ็นสัญญาอัตโนมัติ (เปิดระบการเซ็นตาม Apple ID)
           xcodebuild -project App.xcodeproj \
             -scheme App \
             -configuration Release \
             -sdk iphoneos \
-            -derivedDataPath build \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO
+            -derivedDataPath build
 
       - name: Package .app into Installable .ipa
         script: |
@@ -46,8 +49,7 @@ workflows:
           mkdir -p Payload
           cp -r App.app Payload/
           zip -r ../../../../SnakeGame3D.ipa Payload
-          echo "Created SnakeGame3D.ipa successfully!"
+          echo "Created SnakeGame3D.ipa with profile successfully!"
 
     artifacts:
       - SnakeGame3D.ipa
-      - ios/App/build/Build/Products/Release-iphoneos/*.app
