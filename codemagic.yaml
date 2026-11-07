@@ -190,5 +190,6 @@ workflows:
           zip -r ../../SnakeGame3D.ipa Payload/
           echo "✓ Created installable SnakeGame3D.ipa successfully!"
 
-    artifacts:
+        artifacts:
       - "*.ipa"
+
