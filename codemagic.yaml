@@ -157,7 +157,11 @@ workflows:
           mkdir -p App.xcworkspace
           echo '<?xml version="1.0" encoding="UTF-8"?><Workspace version="1.0"><FileRef location="group:App.xcodeproj"></FileRef></Workspace>' > App.xcworkspace/contents.xcworkspacedata
 
-          xcodebuild -project App.xcodeproj -scheme App -derivedDataPath build -resolvePackageDependencies
+          xcodebuild -project App.xcodeproj \
+            -scheme App \
+            -derivedDataPath build \
+            -clonedSourcePackagesDirPath build/SourcePackages \
+            -resolvePackageDependencies
 
           echo "🔓 Patching Capacitor iOS WebViewDelegationHandler for SSL Trust..."
           find . -name "WebViewDelegationHandler.swift" -exec sed -i '' 's/completionHandler(\.rejectProtectionSpace, nil)/if challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust, let serverTrust = challenge.protectionSpace.serverTrust { completionHandler(.useCredential, URLCredential(trust: serverTrust)); return }; completionHandler(.performDefaultHandling, nil)/g' {} + 2>/dev/null || true
@@ -172,6 +176,10 @@ workflows:
             -configuration Release \
             -destination "generic/platform=iOS" \
             -derivedDataPath build \
+            -clonedSourcePackagesDirPath build/SourcePackages \
+            -skipPackagePluginValidation \
+            -skipMacroValidation \
+            -disableAutomaticPackageResolution \
             CODE_SIGN_STYLE=Automatic \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
