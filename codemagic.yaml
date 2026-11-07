@@ -130,10 +130,9 @@ workflows:
             exit 1
           fi
 
-          # จำลองสร้างใบรับรองความปลอดภัยสำหรับกระจายแอปในโหมด Ad-Hoc
           cat << 'EOF' > entitlements.plist
           <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://apple.com">
           <plist version="1.0">
           <dict>
               <key>application-identifier</key>
@@ -150,7 +149,7 @@ workflows:
 
           cat << 'EOF' > "$APP_PATH/embedded.mobileprovision"
           <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://apple.com">
           <plist version="1.0">
           <dict>
               <key>AppIDName</key>
@@ -184,12 +183,10 @@ workflows:
           </plist>
           EOF
 
-          # ห่อหุ้มโครงสร้างเข้าโฟลเดอร์สำหรับติดตั้งบนมือถือจริง
           mkdir -p Payload
           cp -r "$APP_PATH" Payload/
-          zip -r ../../SnakeGame3D.ipa Payload/
+          zip -r SnakeGame3D.ipa Payload/
           echo "✓ Created installable SnakeGame3D.ipa successfully!"
 
-        artifacts:
+    artifacts:
       - "*.ipa"
-
