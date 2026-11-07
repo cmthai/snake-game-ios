@@ -241,19 +241,35 @@ workflows:
       - name: Package .app into Installable .ipa for Diawi
         script: |
           echo "📦 Packaging into SnakeGame3D.ipa..."
-          BUILD_DIR="ios/App/build/Build/Products/Release-iphoneos"
+          ROOT_DIR="$(pwd)"
+          BUILD_DIR="$ROOT_DIR/ios/App/build/Build/Products/Release-iphoneos"
+          APP_PATH="$BUILD_DIR/App.app"
+          
+          if [ ! -d "$APP_PATH" ]; then
+            echo "❌ Error: App.app not found at $APP_PATH"
+            exit 1
+          fi
+
+          # Prepare clean Payload directory for .ipa archive
+          PAYLOAD_DIR="$BUILD_DIR/Payload"
+          rm -rf "$PAYLOAD_DIR"
+          mkdir -p "$PAYLOAD_DIR"
+          
+          # Copy .app bundle into Payload/
+          cp -R "$APP_PATH" "$PAYLOAD_DIR/"
+          
+          # Create SnakeGame3D.ipa in repository root and standard build output
           cd "$BUILD_DIR"
+          zip -qr "$ROOT_DIR/SnakeGame3D.ipa" Payload
           
-          mkdir -p Payload
-          rm -rf Payload/*
-          cp -r App.app Payload/SnakeGame3D.app
-          
-          zip -qr ../../../../SnakeGame3D.ipa Payload
-          cd ../../../../
+          cd "$ROOT_DIR"
+          mkdir -p build/ios/ipa
+          cp -f SnakeGame3D.ipa build/ios/ipa/SnakeGame3D.ipa
           
           echo "🎉 Successfully generated SnakeGame3D.ipa!"
-          ls -lh SnakeGame3D.ipa
+          ls -lh SnakeGame3D.ipa build/ios/ipa/SnakeGame3D.ipa
 
     artifacts:
       - SnakeGame3D.ipa
-      - ios/App/build/Build/Products/Release-iphoneos/*.app
+      - build/ios/ipa/*.ipa
+      - "*.ipa"
