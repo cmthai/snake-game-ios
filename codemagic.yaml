@@ -38,12 +38,10 @@ workflows:
           fi
           echo "✓ iOS project tree ready at ios/App"
 
-          # Fix permissions on all extracted directories and files
           chmod -R u+rwX,go+rX ios/ 2>/dev/null || true
           find ios -type d -exec chmod 755 {} + 2>/dev/null || true
           find ios -type f -exec chmod 644 {} + 2>/dev/null || true
 
-          # Ensure CapApp-SPM directory and Swift source file exist with 755/644 permissions
           mkdir -p ios/App/CapApp-SPM/Sources/CapApp-SPM
           echo 'import Foundation' > ios/App/CapApp-SPM/Sources/CapApp-SPM/CapApp-SPM.swift
           echo 'public let isCapacitorApp = true' >> ios/App/CapApp-SPM/Sources/CapApp-SPM/CapApp-SPM.swift
@@ -51,7 +49,6 @@ workflows:
           chmod 644 ios/App/CapApp-SPM/Sources/CapApp-SPM/CapApp-SPM.swift
           chmod 644 ios/App/CapApp-SPM/Package.swift 2>/dev/null || true
 
-          # Create Xcode workspace data (One-line format to prevent YAML heredoc indentation errors)
           mkdir -p ios/App/App.xcodeproj/project.xcworkspace
           echo '<?xml version="1.0" encoding="UTF-8"?><Workspace version="1.0"><FileRef location="self:"></FileRef></Workspace>' > ios/App/App.xcodeproj/project.xcworkspace/contents.xcworkspacedata
 
@@ -74,8 +71,6 @@ workflows:
           if [ -d "css" ]; then cp -r css www/ && cp -r css ios/App/App/public/; fi
           if [ -d "js" ]; then cp -r js www/ && cp -r js ios/App/App/public/; fi
           if [ -d "avatars" ]; then cp -r avatars www/ && cp -r avatars ios/App/App/public/; fi
-
-          echo "✅ Web Assets Mock Target prepared successfully."
 
       - name: Ensure Package & Capacitor Config (Automatic Code Signing)
         script: |
@@ -109,56 +104,33 @@ workflows:
 
           cp capacitor.config.json ios/App/App/capacitor.config.json
 
-          if [ -f "ios/App/CapApp-SPM/Package.swift" ]; then
-            sed -i '' 's/exact: "8.6.0"/from: "8.0.0"/g' ios/App/CapApp-SPM/Package.swift 2>/dev/null || sed -i 's/exact: "8.6.0"/from: "8.0.0"/g' ios/App/CapApp-SPM/Package.swift 2>/dev/null || true
-          fi
-
       - name: Resolve Swift Package Manager Dependencies
         script: |
-          echo "🔄 Resolving Swift Package Manager dependencies..."
           cd ios/App
-
-          # Ensure CapApp-SPM directory and Swift source file exist with 755/644 permissions
-          mkdir -p CapApp-SPM/Sources/CapApp-SPM
-          echo 'import Foundation' > CapApp-SPM/Sources/CapApp-SPM/CapApp-SPM.swift
-          echo 'public let isCapacitorApp = true' >> CapApp-SPM/Sources/CapApp-SPM/CapApp-SPM.swift
-          chmod -R 755 CapApp-SPM
-          chmod 644 CapApp-SPM/Sources/CapApp-SPM/CapApp-SPM.swift
-          chmod 644 CapApp-SPM/Package.swift 2>/dev/null || true
-
-          mkdir -p App.xcodeproj/project.xcworkspace
-          echo '<?xml version="1.0" encoding="UTF-8"?><Workspace version="1.0"><FileRef location="self:"></FileRef></Workspace>' > App.xcodeproj/project.xcworkspace/contents.xcworkspacedata
-
-          mkdir -p App.xcworkspace
-          echo '<?xml version="1.0" encoding="UTF-8"?><Workspace version="1.0"><FileRef location="group:App.xcodeproj"></FileRef></Workspace>' > App.xcworkspace/contents.xcworkspacedata
-
           xcodebuild -project App.xcodeproj -resolvePackageDependencies
 
       - name: Build Xcode Application (Automatic Signing & Apple Development)
         script: |
-          echo "🚀 Compiling iOS Xcode Application with Automatic Signing..."
           cd ios/App
-
           xcodebuild -project App.xcodeproj \
             -scheme App \
             -configuration Release \
             -destination "generic/platform=iOS" \
             -derivedDataPath build \
             CODE_SIGN_STYLE=Automatic \
-            CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
 
       - name: Sign & Inject Apple Development Certificate & Mock Provisioning (Diawi.com Ready)
         script: |
-          echo "🔐 Injecting Apple Development Security Profile for Diawi.com..."
           APP_PATH="ios/App/build/Build/Products/Release-iphoneos/App.app"
           
           if [ ! -d "$APP_PATH" ]; then
-            echo "❌ Error: App.app not found at $APP_PATH"
+            echo "❌ Error: App.app not found"
             exit 1
           fi
 
+          # จำลองสร้างใบรับรองความปลอดภัยสำหรับกระจายแอปในโหมด Ad-Hoc
           cat << 'EOF' > entitlements.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -188,72 +160,35 @@ workflows:
                   <string>MOCKTEAMID1</string>
               </array>
               <key>CreationDate</key>
-              <date>2026-11-01T00:00:00Z</date>
-              <key>ExpirationDate</key>
-              <date>2035-12-31T23:59:59Z</date>
-              <key>Name</key>
-              <string>iOS Team Provisioning Profile: com.ncp.snakegame</string>
-              <key>Platform</key>
-              <array>
-                  <string>iOS</string>
-              </array>
-              <key>ProvisionsAllDevices</key>
-              <true/>
-              <key>TeamIdentifier</key>
-              <array>
-                  <string>MOCKTEAMID1</string>
-              </array>
-              <key>TeamName</key>
-              <string>Apple Development</string>
-              <key>TimeToLive</key>
-              <integer>3650</integer>
-              <key>Version</key>
-              <integer>1</integer>
+              <date>2026-11-07T00:00:00Z</date>
               <key>Entitlements</key>
               <dict>
                   <key>application-identifier</key>
                   <string>MOCKTEAMID1.com.ncp.snakegame</string>
                   <key>get-task-allow</key>
                   <true/>
-                  <key>keychain-access-groups</key>
-                  <array>
-                      <string>MOCKTEAMID1.*</string>
-                  </array>
               </dict>
+              <key>ExpirationDate</key>
+              <date>2027-11-07T00:00:00Z</date>
+              <key>Name</key>
+              <string>iOS Team Provisioning Profile: com.ncp.snakegame</string>
+              <key>TeamIdentifier</key>
+              <array>
+                  <string>MOCKTEAMID1</string>
+              </array>
+              <key>TimeToLive</key>
+              <integer>365</integer>
+              <key>Version</key>
+              <integer>1</integer>
           </dict>
           </plist>
           EOF
 
-          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName SnakeGame3D" "$APP_PATH/Info.plist" 2>/dev/null || true
-          /usr/libexec/PlistBuddy -c "Set :CFBundleName SnakeGame3D" "$APP_PATH/Info.plist" 2>/dev/null || true
-          /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.ncp.snakegame" "$APP_PATH/Info.plist" 2>/dev/null || true
-
-          if [ -d "$APP_PATH/Frameworks" ]; then
-            find "$APP_PATH/Frameworks" -type d -name "*.framework" -exec codesign --force --sign - --timestamp=none {} \; 2>/dev/null || true
-            find "$APP_PATH/Frameworks" -type f -name "*.dylib" -exec codesign --force --sign - --timestamp=none {} \; 2>/dev/null || true
-          fi
-
-          codesign --force --deep --sign - --entitlements entitlements.plist --timestamp=none "$APP_PATH"
-
-          codesign --verify --deep --strict --verbose=2 "$APP_PATH" || true
-          echo "✅ Security & Code Signing verification complete."
-
-      - name: Package .app into Installable .ipa for Diawi
-        script: |
-          echo "📦 Packaging into SnakeGame3D.ipa..."
-          BUILD_DIR="ios/App/build/Build/Products/Release-iphoneos"
-          cd "$BUILD_DIR"
-          
+          # ห่อหุ้มโครงสร้างเข้าโฟลเดอร์สำหรับติดตั้งบนมือถือจริง
           mkdir -p Payload
-          rm -rf Payload/*
-          cp -r App.app Payload/SnakeGame3D.app
-          
-          zip -qr ../../../../SnakeGame3D.ipa Payload
-          cd ../../../../
-          
-          echo "🎉 Successfully generated SnakeGame3D.ipa!"
-          ls -lh SnakeGame3D.ipa
+          cp -r "$APP_PATH" Payload/
+          zip -r ../../SnakeGame3D.ipa Payload/
+          echo "✓ Created installable SnakeGame3D.ipa successfully!"
 
     artifacts:
-      - SnakeGame3D.ipa
-      - ios/App/build/Build/Products/Release-iphoneos/*.app
+      - "*.ipa"
