@@ -2,6 +2,7 @@
   "appId": "com.ncp.snakegame",
   "appName": "SnakeGame3D",
   "webDir": "www",
+  "backgroundColor": "#070b14",
   "server": {
     "url": "https://pmix01.thddns.net:7175/home/snake/",
     "cleartext": true,
