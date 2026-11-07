@@ -12,11 +12,11 @@ workflows:
           echo "📦 Extracting iOS project..."
           if [ -f "ios.zip" ]; then
             mkdir -p ios
-            python3 - << 'PYEOF'
+            python3 -c "
           import zipfile, os
           with zipfile.ZipFile('ios.zip', 'r') as z:
               for info in z.infolist():
-                  clean_name = info.filename.replace('\\', '/').lstrip('/')
+                  clean_name = info.filename.replace('\\\\', '/').lstrip('/')
                   if not clean_name:
                       continue
                   target_path = os.path.join('ios', clean_name)
@@ -26,8 +26,8 @@ workflows:
                       os.makedirs(os.path.dirname(target_path), exist_ok=True)
                       with z.open(info) as src, open(target_path, 'wb') as dst:
                           dst.write(src.read())
-          print("Extracted and normalized iOS project files successfully.")
-          PYEOF
+          print('Extracted and normalized iOS project files successfully.')
+          "
             if [ -d "App" ] && [ ! -d "ios/App" ]; then
               mv App ios/
             fi
@@ -38,12 +38,10 @@ workflows:
           fi
           echo "✓ iOS project tree ready at ios/App"
 
-          # Fix permissions on all extracted directories and files
           chmod -R u+rwX,go+rX ios/ 2>/dev/null || true
           find ios -type d -exec chmod 755 {} + 2>/dev/null || true
           find ios -type f -exec chmod 644 {} + 2>/dev/null || true
 
-          # Ensure CapApp-SPM directory and Swift source file exist with 755/644 permissions
           mkdir -p ios/App/CapApp-SPM/Sources/CapApp-SPM
           echo 'import Foundation' > ios/App/CapApp-SPM/Sources/CapApp-SPM/CapApp-SPM.swift
           echo 'public let isCapacitorApp = true' >> ios/App/CapApp-SPM/Sources/CapApp-SPM/CapApp-SPM.swift
@@ -51,55 +49,45 @@ workflows:
           chmod 644 ios/App/CapApp-SPM/Sources/CapApp-SPM/CapApp-SPM.swift
           chmod 644 ios/App/CapApp-SPM/Package.swift 2>/dev/null || true
 
-          # Create Xcode workspace data (One-line format to prevent YAML heredoc indentation errors)
-          mkdir -p ios/App/App.xcodeproj/project.xcworkspace
-          echo '<?xml version="1.0" encoding="UTF-8"?><Workspace version="1.0"><FileRef location="self:"></FileRef></Workspace>' > ios/App/App.xcodeproj/project.xcworkspace/contents.xcworkspacedata
-
-          mkdir -p ios/App/App.xcworkspace
-          echo '<?xml version="1.0" encoding="UTF-8"?><Workspace version="1.0"><FileRef location="group:App.xcodeproj"></FileRef></Workspace>' > ios/App/App.xcworkspace/contents.xcworkspacedata
-
       - name: Create Web Assets Mock Target (Prevent Stale Build Steps)
         script: |
-          echo "🛠️ Creating Web Assets Targets (dist, www, public)..."
+          echo "🌐 Creating Web Assets Targets (dist, www, public)..."
           mkdir -p www dist ios/App/App/public
 
-          # Priority 1: If root index.html exists, use it
           if [ -f "index.html" ]; then
             echo "✓ Using root index.html"
             cp index.html www/
             cp index.html ios/App/App/public/
-          # Priority 2: If ios/App/App/public/index.html was already extracted, keep it
-          elif [ -s "ios/App/App/public/index.html" ]; then
+          elif [ -f "ios/App/App/public/index.html" ] && [ $(wc -c < "ios/App/App/public/index.html") -gt 500 ]; then
             echo "✓ Using extracted game assets from ios package"
             cp ios/App/App/public/index.html www/
           else
-            # Priority 3: Create elegant loading redirect bridge to live game server
             echo "🌐 Creating live redirect bridge to SnakeGame3D Server..."
-            python3 - << 'PYEOF'
+            python3 -c "
           html = '''<!DOCTYPE html>
-          <html lang="th">
+          <html lang=\"th\">
           <head>
-              <meta charset="UTF-8">
-              <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no,viewport-fit=cover">
+              <meta charset=\"UTF-8\">
+              <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover\">
               <title>SnakeGame3D</title>
               <style>
                   *{box-sizing:border-box;margin:0;padding:0;}
-                  body,html{width:100vw;height:100vh;background:radial-gradient(circle at center,#1e1b4b 0%,#0b0f19 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#fff;overflow:hidden;}
-                  .logo{font-size:24px;font-weight:900;margin-bottom:20px;background:linear-gradient(135deg,#00e5ff,#a855f7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
-                  .spinner{width:44px;height:44px;border:4px solid rgba(0,229,255,0.2);border-top-color:#00e5ff;border-radius:50%;animation:spin 0.85s linear infinite;margin-bottom:14px;}
+                  body{width:100vw;height:100vh;background:radial-gradient(circle at center, #0f172a 0%, #020617 100%);color:#f8fafc;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,sans-serif;overflow:hidden;}
+                  .logo{font-size:28px;font-weight:900;letter-spacing:1px;background:linear-gradient(135deg, #38bdf8, #818cf8, #c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:20px;}
+                  .spinner{width:46px;height:46px;border:4px solid rgba(56,189,248,0.2);border-top:4px solid #38bdf8;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:16px;}
                   @keyframes spin{100%{transform:rotate(360deg);}}
               </style>
-              <script>window.location.replace("https://pmix01.thddns.net:7175/home/snake/");</script>
+              <script>window.location.replace(\"https://pmix01.thddns.net:7175/home/snake/\");</script>
           </head>
           <body>
-              <div class="logo">🎲 Snake &amp; Ladder 3D</div>
-              <div class="spinner"></div>
-              <div style="font-size:14px;font-weight:700;color:#38bdf8;">กำลังเข้าสู่เกมเศรษฐี 3D...</div>
+              <div class=\"logo\">🎲 Snake &amp; Ladder 3D</div>
+              <div class=\"spinner\"></div>
+              <div style=\"font-size:14px;font-weight:700;color:#38bdf8;\">กำลังเข้าสู่เกมเศรษฐี 3D...</div>
           </body>
           </html>'''
           with open('www/index.html', 'w', encoding='utf-8') as f:
               f.write(html)
-          PYEOF
+          "
             cp www/index.html ios/App/App/public/index.html
           fi
 
@@ -118,19 +106,47 @@ workflows:
 
           cp capacitor.config.json ios/App/App/capacitor.config.json
 
-          if [ -f "ios/App/CapApp-SPM/Package.swift" ]; then
-            sed -i '' 's/exact: "8.6.0"/from: "8.0.0"/g' ios/App/CapApp-SPM/Package.swift 2>/dev/null || sed -i 's/exact: "8.6.0"/from: "8.0.0"/g' ios/App/CapApp-SPM/Package.swift 2>/dev/null || true
-          fi
-
       - name: Resolve Swift Package Manager Dependencies
         script: |
           echo "🔄 Resolving Swift Package Manager dependencies..."
           cd ios/App
 
-          # Ensure CapApp-SPM directory and Swift source file exist with 755/644 permissions
           mkdir -p CapApp-SPM/Sources/CapApp-SPM
           echo 'import Foundation' > CapApp-SPM/Sources/CapApp-SPM/CapApp-SPM.swift
           echo 'public let isCapacitorApp = true' >> CapApp-SPM/Sources/CapApp-SPM/CapApp-SPM.swift
+
+          python3 -c "
+          code = '''// swift-tools-version: 5.9
+          import PackageDescription
+
+          // DO NOT MODIFY THIS FILE - managed by Capacitor CLI commands
+          let package = Package(
+              name: \"CapApp-SPM\",
+              platforms: [.iOS(.v15)],
+              products: [
+                  .library(
+                      name: \"CapApp-SPM\",
+                      targets: [\"CapApp-SPM\"])
+              ],
+              dependencies: [
+                  .package(url: \"https://github.com/ionic-team/capacitor-swift-pm.git\", from: \"8.0.0\")
+              ],
+              targets: [
+                  .target(
+                      name: \"CapApp-SPM\",
+                      dependencies: [
+                          .product(name: \"Capacitor\", package: \"capacitor-swift-pm\"),
+                          .product(name: \"Cordova\", package: \"capacitor-swift-pm\")
+                      ],
+                      path: \"Sources/CapApp-SPM\"
+                  )
+              ]
+          )
+          '''
+          with open('CapApp-SPM/Package.swift', 'w', encoding='utf-8') as f:
+              f.write(code)
+          print('CapApp-SPM Package.swift generated.')
+          "
           chmod -R 755 CapApp-SPM
           chmod 644 CapApp-SPM/Sources/CapApp-SPM/CapApp-SPM.swift
           chmod 644 CapApp-SPM/Package.swift 2>/dev/null || true
@@ -141,7 +157,7 @@ workflows:
           mkdir -p App.xcworkspace
           echo '<?xml version="1.0" encoding="UTF-8"?><Workspace version="1.0"><FileRef location="group:App.xcodeproj"></FileRef></Workspace>' > App.xcworkspace/contents.xcworkspacedata
 
-          xcodebuild -project App.xcodeproj -resolvePackageDependencies
+          xcodebuild -project App.xcodeproj -scheme App -derivedDataPath build -resolvePackageDependencies
 
           echo "🔓 Patching Capacitor iOS WebViewDelegationHandler for SSL Trust..."
           find . -name "WebViewDelegationHandler.swift" -exec sed -i '' 's/completionHandler(\.rejectProtectionSpace, nil)/if challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust, let serverTrust = challenge.protectionSpace.serverTrust { completionHandler(.useCredential, URLCredential(trust: serverTrust)); return }; completionHandler(.performDefaultHandling, nil)/g' {} + 2>/dev/null || true
@@ -171,10 +187,12 @@ workflows:
             exit 1
           fi
 
-          cat << 'EOF' > entitlements.plist
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
+          python3 -c "
+          import os
+          app_path = 'ios/App/build/Build/Products/Release-iphoneos/App.app'
+          entitlements = '''<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+          <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+          <plist version=\"1.0\">
           <dict>
               <key>application-identifier</key>
               <string>MOCKTEAMID1.com.ncp.snakegame</string>
@@ -185,13 +203,13 @@ workflows:
                   <string>MOCKTEAMID1.*</string>
               </array>
           </dict>
-          </plist>
-          EOF
+          </plist>'''
+          with open('entitlements.plist', 'w', encoding='utf-8') as f:
+              f.write(entitlements)
 
-          cat << 'EOF' > "$APP_PATH/embedded.mobileprovision"
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
+          provision = '''<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+          <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+          <plist version=\"1.0\">
           <dict>
               <key>AppIDName</key>
               <string>SnakeGame3D</string>
@@ -233,8 +251,11 @@ workflows:
                   </array>
               </dict>
           </dict>
-          </plist>
-          EOF
+          </plist>'''
+          with open(os.path.join(app_path, 'embedded.mobileprovision'), 'w', encoding='utf-8') as f:
+              f.write(provision)
+          print('Provisioning profiles generated successfully.')
+          "
 
           /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName SnakeGame3D" "$APP_PATH/Info.plist" 2>/dev/null || true
           /usr/libexec/PlistBuddy -c "Set :CFBundleName SnakeGame3D" "$APP_PATH/Info.plist" 2>/dev/null || true
@@ -265,15 +286,12 @@ workflows:
             exit 1
           fi
 
-          # Prepare clean Payload directory for .ipa archive
           PAYLOAD_DIR="$BUILD_DIR/Payload"
           rm -rf "$PAYLOAD_DIR"
           mkdir -p "$PAYLOAD_DIR"
           
-          # Copy .app bundle into Payload/
           cp -R "$APP_PATH" "$PAYLOAD_DIR/"
           
-          # Create SnakeGame3D.ipa in repository root and standard build output
           cd "$BUILD_DIR"
           zip -qr "$ROOT_DIR/SnakeGame3D.ipa" Payload
           
