@@ -11,7 +11,6 @@ workflows:
         script: |
           echo "📦 Extracting iOS project..."
           if [ -f "ios.zip" ]; then
-            # แตกไฟล์และจัดโครงสร้างโฟลเดอร์ให้เป็น ios/App เสมอ
             mkdir -p ios
             unzip -o -q ios.zip -d ios/ 2>/dev/null || unzip -o -q ios.zip
             if [ -d "App" ] && [ ! -d "ios/App" ]; then
@@ -24,43 +23,23 @@ workflows:
           fi
           echo "✓ iOS project tree ready at ios/App"
 
-          # บันทึกโครงสร้าง workspace ที่จำเป็นสำหรับ Xcode (ป้องกัน Error: Unable to read project App.xcodeproj)
+          # Create Xcode workspace data (One-line format to prevent YAML heredoc indentation errors)
           mkdir -p ios/App/App.xcodeproj/project.xcworkspace
-          cat << 'EOF' > ios/App/App.xcodeproj/project.xcworkspace/contents.xcworkspacedata
-<?xml version="1.0" encoding="UTF-8"?>
-<Workspace
-   version = "1.0">
-   <FileRef
-      location = "self:">
-   </FileRef>
-</Workspace>
-EOF
+          echo '<?xml version="1.0" encoding="UTF-8"?><Workspace version="1.0"><FileRef location="self:"></FileRef></Workspace>' > ios/App/App.xcodeproj/project.xcworkspace/contents.xcworkspacedata
 
           mkdir -p ios/App/App.xcworkspace
-          cat << 'EOF' > ios/App/App.xcworkspace/contents.xcworkspacedata
-<?xml version="1.0" encoding="UTF-8"?>
-<Workspace
-   version = "1.0">
-   <FileRef
-      location = "group:App.xcodeproj">
-   </FileRef>
-</Workspace>
-EOF
+          echo '<?xml version="1.0" encoding="UTF-8"?><Workspace version="1.0"><FileRef location="group:App.xcodeproj"></FileRef></Workspace>' > ios/App/App.xcworkspace/contents.xcworkspacedata
 
       - name: Create Web Assets Mock Target (Prevent Stale Build Steps)
         script: |
           echo "🛠️ Creating Web Assets Mock Targets (dist, www, public)..."
-          # สร้างโฟลเดอร์จำลองป้องกันสเต็ปเก่าค้าง
           mkdir -p www dist ios/App/App/public
 
-          # จำลองหรือคัดลอกไฟล์เว็บหลักเข้า www และ public
           if [ -f "index.html" ]; then
             cp index.html www/
             cp index.html ios/App/App/public/
           else
-            cat << 'EOF' > www/index.html
-          <!DOCTYPE html><html><head><meta charset="UTF-8"><title>SnakeGame3D</title></head><body><h1>SnakeGame3D Web View</h1></body></html>
-          EOF
+            echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>SnakeGame3D</title></head><body><h1>SnakeGame3D Web View</h1></body></html>' > www/index.html
             cp www/index.html ios/App/App/public/index.html
           fi
 
@@ -73,17 +52,7 @@ EOF
       - name: Ensure Package & Capacitor Config (Automatic Code Signing)
         script: |
           echo "⚙️ Verifying package.json and capacitor.config.json..."
-          cat << 'EOF' > package.json
-          {
-            "name": "snakegame3d",
-            "version": "1.0.0",
-            "dependencies": {
-              "@capacitor/core": "^8.6.0",
-              "@capacitor/cli": "^8.6.0",
-              "@capacitor/ios": "^8.6.0"
-            }
-          }
-          EOF
+          echo '{"name":"snakegame3d","version":"1.0.0","dependencies":{"@capacitor/core":"^8.6.0","@capacitor/cli":"^8.6.0","@capacitor/ios":"^8.6.0"}}' > package.json
 
           cat << 'EOF' > capacitor.config.json
           {
@@ -112,34 +81,9 @@ EOF
 
           cp capacitor.config.json ios/App/App/capacitor.config.json
 
-          # ปรับแต่ง CapApp-SPM Package.swift
-          mkdir -p ios/App/CapApp-SPM
-          cat << 'EOF' > ios/App/CapApp-SPM/Package.swift
-// swift-tools-version: 5.9
-import PackageDescription
-
-let package = Package(
-    name: "CapApp-SPM",
-    platforms: [.iOS(.v15)],
-    products: [
-        .library(
-            name: "CapApp-SPM",
-            targets: ["CapApp-SPM"])
-    ],
-    dependencies: [
-        .package(url: "https://github.com/ionic-team/capacitor-swift-pm.git", from: "8.0.0")
-    ],
-    targets: [
-        .target(
-            name: "CapApp-SPM",
-            dependencies: [
-                .product(name: "Capacitor", package: "capacitor-swift-pm"),
-                .product(name: "Cordova", package: "capacitor-swift-pm")
-            ]
-        )
-    ]
-)
-EOF
+          if [ -f "ios/App/CapApp-SPM/Package.swift" ]; then
+            sed -i '' 's/exact: "8.6.0"/from: "8.0.0"/g' ios/App/CapApp-SPM/Package.swift 2>/dev/null || sed -i 's/exact: "8.6.0"/from: "8.0.0"/g' ios/App/CapApp-SPM/Package.swift 2>/dev/null || true
+          fi
 
       - name: Resolve Swift Package Manager Dependencies
         script: |
@@ -147,15 +91,10 @@ EOF
           cd ios/App
 
           mkdir -p App.xcodeproj/project.xcworkspace
-          cat << 'EOF' > App.xcodeproj/project.xcworkspace/contents.xcworkspacedata
-<?xml version="1.0" encoding="UTF-8"?>
-<Workspace
-   version = "1.0">
-   <FileRef
-      location = "self:">
-   </FileRef>
-</Workspace>
-EOF
+          echo '<?xml version="1.0" encoding="UTF-8"?><Workspace version="1.0"><FileRef location="self:"></FileRef></Workspace>' > App.xcodeproj/project.xcworkspace/contents.xcworkspacedata
+
+          mkdir -p App.xcworkspace
+          echo '<?xml version="1.0" encoding="UTF-8"?><Workspace version="1.0"><FileRef location="group:App.xcodeproj"></FileRef></Workspace>' > App.xcworkspace/contents.xcworkspacedata
 
           xcodebuild -project App.xcodeproj -resolvePackageDependencies
 
@@ -164,7 +103,6 @@ EOF
           echo "🚀 Compiling iOS Xcode Application with Automatic Signing..."
           cd ios/App
 
-          # บิวด์โปรเจกต์ด้วย Xcode ในสิทธิ์ Apple Development และ Automatic Code Signing
           xcodebuild -project App.xcodeproj \
             -scheme App \
             -configuration Release \
@@ -185,7 +123,6 @@ EOF
             exit 1
           fi
 
-          # 1. สร้าง Entitlements Plist สำหรับ Apple Development
           cat << 'EOF' > entitlements.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -203,8 +140,6 @@ EOF
           </plist>
           EOF
 
-          # 2. สร้าง embedded.mobileprovision จำลอง (Apple Development Profile)
-          # โครงสร้างนี้ผ่านการรองรับมาตรฐาน Plist Scanner ของ Diawi.com 100%
           cat << 'EOF' > "$APP_PATH/embedded.mobileprovision"
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -253,21 +188,17 @@ EOF
           </plist>
           EOF
 
-          # 3. อัปเดตชื่อใน Info.plist
           /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName SnakeGame3D" "$APP_PATH/Info.plist" 2>/dev/null || true
           /usr/libexec/PlistBuddy -c "Set :CFBundleName SnakeGame3D" "$APP_PATH/Info.plist" 2>/dev/null || true
           /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.ncp.snakegame" "$APP_PATH/Info.plist" 2>/dev/null || true
 
-          # 4. Sign Frameworks และ Libraries ทั้งหมดภายในแอป
           if [ -d "$APP_PATH/Frameworks" ]; then
             find "$APP_PATH/Frameworks" -type d -name "*.framework" -exec codesign --force --sign - --timestamp=none {} \; 2>/dev/null || true
             find "$APP_PATH/Frameworks" -type f -name "*.dylib" -exec codesign --force --sign - --timestamp=none {} \; 2>/dev/null || true
           fi
 
-          # 5. Sign ตัวแอป App.app ด้วย Ad-Hoc / Development Identity
           codesign --force --deep --sign - --entitlements entitlements.plist --timestamp=none "$APP_PATH"
 
-          # 6. ตรวจสอบการลงนาม (Verification)
           codesign --verify --deep --strict --verbose=2 "$APP_PATH" || true
           echo "✅ Security & Code Signing verification complete."
 
@@ -281,7 +212,6 @@ EOF
           rm -rf Payload/*
           cp -r App.app Payload/SnakeGame3D.app
           
-          # สร้างไฟล์ .ipa
           zip -qr ../../../../SnakeGame3D.ipa Payload
           cd ../../../../
           
