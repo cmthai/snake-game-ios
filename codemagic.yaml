@@ -24,6 +24,29 @@ workflows:
           fi
           echo "✓ iOS project tree ready at ios/App"
 
+          # บันทึกโครงสร้าง workspace ที่จำเป็นสำหรับ Xcode (ป้องกัน Error: Unable to read project App.xcodeproj)
+          mkdir -p ios/App/App.xcodeproj/project.xcworkspace
+          cat << 'EOF' > ios/App/App.xcodeproj/project.xcworkspace/contents.xcworkspacedata
+<?xml version="1.0" encoding="UTF-8"?>
+<Workspace
+   version = "1.0">
+   <FileRef
+      location = "self:">
+   </FileRef>
+</Workspace>
+EOF
+
+          mkdir -p ios/App/App.xcworkspace
+          cat << 'EOF' > ios/App/App.xcworkspace/contents.xcworkspacedata
+<?xml version="1.0" encoding="UTF-8"?>
+<Workspace
+   version = "1.0">
+   <FileRef
+      location = "group:App.xcodeproj">
+   </FileRef>
+</Workspace>
+EOF
+
       - name: Create Web Assets Mock Target (Prevent Stale Build Steps)
         script: |
           echo "🛠️ Creating Web Assets Mock Targets (dist, www, public)..."
@@ -89,10 +112,51 @@ workflows:
 
           cp capacitor.config.json ios/App/App/capacitor.config.json
 
+          # ปรับแต่ง CapApp-SPM Package.swift
+          mkdir -p ios/App/CapApp-SPM
+          cat << 'EOF' > ios/App/CapApp-SPM/Package.swift
+// swift-tools-version: 5.9
+import PackageDescription
+
+let package = Package(
+    name: "CapApp-SPM",
+    platforms: [.iOS(.v15)],
+    products: [
+        .library(
+            name: "CapApp-SPM",
+            targets: ["CapApp-SPM"])
+    ],
+    dependencies: [
+        .package(url: "https://github.com/ionic-team/capacitor-swift-pm.git", from: "8.0.0")
+    ],
+    targets: [
+        .target(
+            name: "CapApp-SPM",
+            dependencies: [
+                .product(name: "Capacitor", package: "capacitor-swift-pm"),
+                .product(name: "Cordova", package: "capacitor-swift-pm")
+            ]
+        )
+    ]
+)
+EOF
+
       - name: Resolve Swift Package Manager Dependencies
         script: |
           echo "🔄 Resolving Swift Package Manager dependencies..."
           cd ios/App
+
+          mkdir -p App.xcodeproj/project.xcworkspace
+          cat << 'EOF' > App.xcodeproj/project.xcworkspace/contents.xcworkspacedata
+<?xml version="1.0" encoding="UTF-8"?>
+<Workspace
+   version = "1.0">
+   <FileRef
+      location = "self:">
+   </FileRef>
+</Workspace>
+EOF
+
           xcodebuild -project App.xcodeproj -resolvePackageDependencies
 
       - name: Build Xcode Application (Automatic Signing & Apple Development)
@@ -104,12 +168,12 @@ workflows:
           xcodebuild -project App.xcodeproj \
             -scheme App \
             -configuration Release \
-            -sdk iphoneos \
+            -destination "generic/platform=iOS" \
             -derivedDataPath build \
             CODE_SIGN_STYLE=Automatic \
-            CODE_SIGN_IDENTITY="Apple Development" \
+            CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=YES
+            CODE_SIGNING_ALLOWED=NO
 
       - name: Sign & Inject Apple Development Certificate & Mock Provisioning (Diawi.com Ready)
         script: |
