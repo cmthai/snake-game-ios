@@ -1,0 +1,25 @@
+{
+  "appId": "com.ncp.snakegame",
+  "appName": "SnakeGame3D",
+  "webDir": "www",
+  "server": {
+    "url": "https://pmix01.thddns.net:7175/home/snake/",
+    "cleartext": true,
+    "allowNavigation": [
+      "pmix01.thddns.net",
+      "pmix01.thddns.net:7175",
+      "*.thddns.net",
+      "*.google.com",
+      "*.googleapis.com",
+      "*.googleusercontent.com",
+      "*.line.me",
+      "*.line-scdn.net",
+      "*.line-apps.com"
+    ]
+  },
+  "ios": {
+    "contentInset": "always",
+    "allowsLinkPreview": false,
+    "scrollEnabled": false
+  }
+}
