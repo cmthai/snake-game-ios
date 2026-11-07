@@ -12,7 +12,22 @@ workflows:
           echo "📦 Extracting iOS project..."
           if [ -f "ios.zip" ]; then
             mkdir -p ios
-            unzip -o -q ios.zip -d ios/ 2>/dev/null || unzip -o -q ios.zip
+            python3 - << 'PYEOF'
+          import zipfile, os
+          with zipfile.ZipFile('ios.zip', 'r') as z:
+              for info in z.infolist():
+                  clean_name = info.filename.replace('\\', '/').lstrip('/')
+                  if not clean_name:
+                      continue
+                  target_path = os.path.join('ios', clean_name)
+                  if clean_name.endswith('/'):
+                      os.makedirs(target_path, exist_ok=True)
+                  else:
+                      os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                      with z.open(info) as src, open(target_path, 'wb') as dst:
+                          dst.write(src.read())
+          print("Extracted and normalized iOS project files successfully.")
+          PYEOF
             if [ -d "App" ] && [ ! -d "ios/App" ]; then
               mv App ios/
             fi
@@ -22,6 +37,19 @@ workflows:
             fi
           fi
           echo "✓ iOS project tree ready at ios/App"
+
+          # Fix permissions on all extracted directories and files
+          chmod -R u+rwX,go+rX ios/ 2>/dev/null || true
+          find ios -type d -exec chmod 755 {} + 2>/dev/null || true
+          find ios -type f -exec chmod 644 {} + 2>/dev/null || true
+
+          # Ensure CapApp-SPM directory and Swift source file exist with 755/644 permissions
+          mkdir -p ios/App/CapApp-SPM/Sources/CapApp-SPM
+          echo 'import Foundation' > ios/App/CapApp-SPM/Sources/CapApp-SPM/CapApp-SPM.swift
+          echo 'public let isCapacitorApp = true' >> ios/App/CapApp-SPM/Sources/CapApp-SPM/CapApp-SPM.swift
+          chmod -R 755 ios/App/CapApp-SPM
+          chmod 644 ios/App/CapApp-SPM/Sources/CapApp-SPM/CapApp-SPM.swift
+          chmod 644 ios/App/CapApp-SPM/Package.swift 2>/dev/null || true
 
           # Create Xcode workspace data (One-line format to prevent YAML heredoc indentation errors)
           mkdir -p ios/App/App.xcodeproj/project.xcworkspace
@@ -89,6 +117,14 @@ workflows:
         script: |
           echo "🔄 Resolving Swift Package Manager dependencies..."
           cd ios/App
+
+          # Ensure CapApp-SPM directory and Swift source file exist with 755/644 permissions
+          mkdir -p CapApp-SPM/Sources/CapApp-SPM
+          echo 'import Foundation' > CapApp-SPM/Sources/CapApp-SPM/CapApp-SPM.swift
+          echo 'public let isCapacitorApp = true' >> CapApp-SPM/Sources/CapApp-SPM/CapApp-SPM.swift
+          chmod -R 755 CapApp-SPM
+          chmod 644 CapApp-SPM/Sources/CapApp-SPM/CapApp-SPM.swift
+          chmod 644 CapApp-SPM/Package.swift 2>/dev/null || true
 
           mkdir -p App.xcodeproj/project.xcworkspace
           echo '<?xml version="1.0" encoding="UTF-8"?><Workspace version="1.0"><FileRef location="self:"></FileRef></Workspace>' > App.xcodeproj/project.xcworkspace/contents.xcworkspacedata
