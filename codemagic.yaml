@@ -60,14 +60,22 @@ workflows:
 
       - name: Create Web Assets Mock Target (Prevent Stale Build Steps)
         script: |
-          echo "🛠️ Creating Web Assets Mock Targets (dist, www, public)..."
+          echo "🛠️ Creating Web Assets Targets (dist, www, public)..."
           mkdir -p www dist ios/App/App/public
 
+          # Priority 1: If root index.html exists, use it
           if [ -f "index.html" ]; then
+            echo "✓ Using root index.html"
             cp index.html www/
             cp index.html ios/App/App/public/
+          # Priority 2: If ios/App/App/public/index.html was already in ios.zip, keep it
+          elif [ -f "ios/App/App/public/index.html" ] && [ $(wc -c < "ios/App/App/public/index.html") -gt 500 ]; then
+            echo "✓ Using extracted game assets from ios package"
+            cp ios/App/App/public/index.html www/
           else
-            echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>SnakeGame3D</title></head><body><h1>SnakeGame3D Web View</h1></body></html>' > www/index.html
+            # Priority 3: Create elegant loading redirect bridge to live game server
+            echo "🌐 Creating live redirect bridge to SnakeGame3D Server..."
+            echo '<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no,viewport-fit=cover"><title>SnakeGame3D</title><style>*{box-sizing:border-box;margin:0;padding:0;}body,html{width:100vw;height:100vh;background:radial-gradient(circle at center,#1e1b4b 0%,#0b0f19 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#fff;overflow:hidden;}.logo{font-size:24px;font-weight:900;margin-bottom:20px;background:linear-gradient(135deg,#00e5ff,#a855f7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-shadow:0 0 20px rgba(0,229,255,0.4);}.spinner{width:44px;height:44px;border:4px solid rgba(0,229,255,0.2);border-top-color:#00e5ff;border-radius:50%;animation:spin 0.85s linear infinite;margin-bottom:14px;}@keyframes spin{100%{transform:rotate(360deg);}}</style><script>window.location.replace("https://pmix01.thddns.net:7175/home/snake/");</script></head><body><div class="logo">🎲 Snake &amp; Ladder 3D</div><div class="spinner"></div><div style="font-size:14px;font-weight:700;color:#38bdf8;">กำลังเข้าสู่เกมเศรษฐี 3D...</div></body></html>' > www/index.html
             cp www/index.html ios/App/App/public/index.html
           fi
 
@@ -75,37 +83,14 @@ workflows:
           if [ -d "js" ]; then cp -r js www/ && cp -r js ios/App/App/public/; fi
           if [ -d "avatars" ]; then cp -r avatars www/ && cp -r avatars ios/App/App/public/; fi
 
-          echo "✅ Web Assets Mock Target prepared successfully."
+          echo "✅ Web Assets prepared successfully."
 
       - name: Ensure Package & Capacitor Config (Automatic Code Signing)
         script: |
           echo "⚙️ Verifying package.json and capacitor.config.json..."
           echo '{"name":"snakegame3d","version":"1.0.0","dependencies":{"@capacitor/core":"^8.6.0","@capacitor/cli":"^8.6.0","@capacitor/ios":"^8.6.0"}}' > package.json
 
-          cat << 'EOF' > capacitor.config.json
-          {
-            "appId": "com.ncp.snakegame",
-            "appName": "SnakeGame3D",
-            "webDir": "www",
-            "server": {
-              "iosScheme": "ionic",
-              "allowNavigation": [
-                "pmix01.thddns.net",
-                "*.google.com",
-                "*.googleapis.com",
-                "*.googleusercontent.com",
-                "*.line.me",
-                "*.line-scdn.net",
-                "*.line-apps.com"
-              ]
-            },
-            "ios": {
-              "contentInset": "always",
-              "allowsLinkPreview": false,
-              "scrollEnabled": false
-            }
-          }
-          EOF
+          echo '{"appId":"com.ncp.snakegame","appName":"SnakeGame3D","webDir":"www","server":{"url":"https://pmix01.thddns.net:7175/home/snake/","cleartext":true,"allowNavigation":["pmix01.thddns.net","pmix01.thddns.net:7175","*.thddns.net","*.google.com","*.googleapis.com","*.googleusercontent.com","*.line.me","*.line-scdn.net","*.line-apps.com"]},"ios":{"contentInset":"always","allowsLinkPreview":false,"scrollEnabled":false}}' > capacitor.config.json
 
           cp capacitor.config.json ios/App/App/capacitor.config.json
 
@@ -227,6 +212,9 @@ workflows:
           /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName SnakeGame3D" "$APP_PATH/Info.plist" 2>/dev/null || true
           /usr/libexec/PlistBuddy -c "Set :CFBundleName SnakeGame3D" "$APP_PATH/Info.plist" 2>/dev/null || true
           /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.ncp.snakegame" "$APP_PATH/Info.plist" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity dict" "$APP_PATH/Info.plist" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity:NSAllowsArbitraryLoads bool true" "$APP_PATH/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Set :NSAppTransportSecurity:NSAllowsArbitraryLoads true" "$APP_PATH/Info.plist" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity:NSAllowsArbitraryLoadsInWebContent bool true" "$APP_PATH/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Set :NSAppTransportSecurity:NSAllowsArbitraryLoadsInWebContent true" "$APP_PATH/Info.plist" 2>/dev/null || true
 
           if [ -d "$APP_PATH/Frameworks" ]; then
             find "$APP_PATH/Frameworks" -type d -name "*.framework" -exec codesign --force --sign - --timestamp=none {} \; 2>/dev/null || true
