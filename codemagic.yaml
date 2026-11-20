@@ -97,14 +97,21 @@ workflows:
 
           echo "✅ Web Assets prepared successfully."
 
-      - name: Ensure Package & Capacitor Config (Automatic Code Signing)
+      - name: Ensure Package, Capacitor Config & Sync Plugins
         script: |
           echo "⚙️ Verifying package.json and capacitor.config.json..."
-          echo '{"name":"snakegame3d","version":"1.0.0","dependencies":{"@capacitor/core":"^8.6.0","@capacitor/cli":"^8.6.0","@capacitor/ios":"^8.6.0"}}' > package.json
+          if [ ! -f "package.json" ]; then
+            echo '{"name":"snakegame3d","version":"1.0.0","dependencies":{"@capacitor-community/apple-sign-in":"^7.0.0","@capacitor/core":"^8.6.0","@capacitor/cli":"^8.6.0","@capacitor/ios":"^8.6.0"}}' > package.json
+          fi
 
-          echo '{"appId":"com.ncp.snakegame","appName":"SnakeGame3D","webDir":"www","backgroundColor":"#070b14","server":{"url":"https://pmix01.thddns.net:7175/home/snake/","cleartext":true,"allowNavigation":["pmix01.thddns.net","pmix01.thddns.net:7175","*.thddns.net","*.google.com","*.googleapis.com","*.googleusercontent.com","*.line.me","*.line-scdn.net","*.line-apps.com"]},"ios":{"contentInset":"always","allowsLinkPreview":false,"scrollEnabled":false}}' > capacitor.config.json
+          if [ ! -f "capacitor.config.json" ]; then
+            echo '{"appId":"com.ncp.snakegame","appName":"SnakeGame3D","webDir":"www","backgroundColor":"#070b14","server":{"androidScheme":"https","iosScheme":"capacitor","cleartext":true,"allowNavigation":["pmix01.thddns.net","pmix01.thddns.net:7175","*.thddns.net","*.google.com","*.googleapis.com","*.googleusercontent.com","*.line.me","*.line-scdn.net","*.line-apps.com"]},"ios":{"contentInset":"never","allowsLinkPreview":false,"scrollEnabled":false}}' > capacitor.config.json
+          fi
 
           cp capacitor.config.json ios/App/App/capacitor.config.json
+
+          echo "📦 Installing npm packages & syncing Capacitor iOS plugins..."
+          npm install && npx cap sync ios
 
       - name: Resolve Swift Package Manager Dependencies
         script: |
@@ -151,8 +158,7 @@ workflows:
           chmod 644 CapApp-SPM/Sources/CapApp-SPM/CapApp-SPM.swift
           chmod 644 CapApp-SPM/Package.swift 2>/dev/null || true
 
-          mkdir -p App.xcodeproj/project.xcworkspace
-          echo '<?xml version="1.0" encoding="UTF-8"?><Workspace version="1.0"><FileRef location="self:"></FileRef></Workspace>' > App.xcodeproj/project.xcworkspace/contents.xcworkspacedata
+          rm -rf App.xcodeproj/project.xcworkspace/contents.xcworkspacedata
 
           mkdir -p App.xcworkspace
           echo '<?xml version="1.0" encoding="UTF-8"?><Workspace version="1.0"><FileRef location="group:App.xcodeproj"></FileRef></Workspace>' > App.xcworkspace/contents.xcworkspacedata
@@ -170,6 +176,7 @@ workflows:
         script: |
           echo "🚀 Compiling iOS Xcode Application with Automatic Signing..."
           cd ios/App
+          rm -rf App.xcodeproj/project.xcworkspace/contents.xcworkspacedata
 
           xcodebuild -project App.xcodeproj \
             -scheme App \
@@ -204,6 +211,10 @@ workflows:
           <dict>
               <key>application-identifier</key>
               <string>MOCKTEAMID1.com.ncp.snakegame</string>
+              <key>com.apple.developer.applesignin</key>
+              <array>
+                  <string>Default</string>
+              </array>
               <key>get-task-allow</key>
               <true/>
               <key>keychain-access-groups</key>

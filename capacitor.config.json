@@ -4,7 +4,8 @@
   "webDir": "www",
   "backgroundColor": "#070b14",
   "server": {
-    "url": "https://pmix01.thddns.net:7175/home/snake/",
+    "androidScheme": "https",
+    "iosScheme": "capacitor",
     "cleartext": true,
     "allowNavigation": [
       "pmix01.thddns.net",
@@ -19,8 +20,12 @@
     ]
   },
   "ios": {
-    "contentInset": "always",
+    "contentInset": "never",
     "allowsLinkPreview": false,
     "scrollEnabled": false
+  },
+  "android": {
+    "allowMixedContent": true,
+    "backgroundColor": "#070b14"
   }
 }
